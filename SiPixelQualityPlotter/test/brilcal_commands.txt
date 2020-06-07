@@ -1,0 +1,3 @@
+bash
+export PATH=$HOME/.local/bin:/cvmfs/cms-bril.cern.ch/brilconda/bin:$PATH
+brilcalc lumi -b 'STABLE BEAMS' --byls  -u 'hz/ub' --begin 315257 --end 324581 --output-style 'csv' -o luminosityDB.csv
