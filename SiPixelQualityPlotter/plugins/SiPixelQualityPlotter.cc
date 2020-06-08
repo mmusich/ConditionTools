@@ -69,6 +69,7 @@ private:
   void endJob() override;
 
   // ----------member data ---------------------------
+  unsigned int lastRun_;
 
   edm::InputTag lumiInputTag_;
   edm::EDGetTokenT<LumiInfo> lumiToken_;
@@ -105,7 +106,9 @@ private:
 // constructors and destructor
 //
 SiPixelQualityPlotter::SiPixelQualityPlotter(const edm::ParameterSet& iConfig)
-  : lumiInputTag_(iConfig.getUntrackedParameter<edm::InputTag>("lumiInputTag")), lumiToken_(consumes<LumiInfo>(lumiInputTag_)) {
+  : lastRun_(iConfig.getUntrackedParameter<unsigned int>("maxRun",999999)), 
+    lumiInputTag_(iConfig.getUntrackedParameter<edm::InputTag>("lumiInputTag")), 
+    lumiToken_(consumes<LumiInfo>(lumiInputTag_)) {
 
   // initialize the counters
 
@@ -163,6 +166,8 @@ void SiPixelQualityPlotter::analyze(const edm::Event& iEvent, const edm::EventSe
   unsigned int RunNumber_ = iEvent.eventAuxiliary().run();
   unsigned int LuminosityBlockNumber_ = iEvent.eventAuxiliary().luminosityBlock();
 
+  if(RunNumber_>lastRun_) return;
+
   cond::UnpackedTime localtime = std::make_pair(RunNumber_,LuminosityBlockNumber_);
   cond::Time_t packedtime = cond::time::pack(localtime);
   
@@ -181,7 +186,7 @@ void SiPixelQualityPlotter::analyze(const edm::Event& iEvent, const edm::EventSe
 
   if (hasQualityIOV) {
 
-    auto lastIOVtime_ = packedtime;
+    lastIOVtime_ = packedtime;
 
     std::cout << "New IOV, Run: "<< RunNumber_ << " LS:" << LuminosityBlockNumber_ << std::endl;
     std::cout << "Accumulated Luminosity: " << lumiSinceLastReset_ << " | Total Luminosity: " << totalLumi_ << std::endl;
@@ -260,7 +265,9 @@ void SiPixelQualityPlotter::beginJob() {
 
 // ------------ method called once each job just after ending the event loop  ------------
 void SiPixelQualityPlotter::endJob() {
-  // please remove this method if not needed
+  
+  cond::UnpackedTime unpackedtime = cond::time::unpack(lastIOVtime_);
+  std::cout<< "Last Analyzed LS: " << unpackedtime.first << "," << unpackedtime.second <<std::endl;
   
   gStyle->SetOptStat(0);
 

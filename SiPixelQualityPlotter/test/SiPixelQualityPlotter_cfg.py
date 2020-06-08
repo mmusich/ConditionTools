@@ -23,15 +23,15 @@ process.MessageLogger.statistics.append('cout')
 ## Empty source
 ##
 process.source = cms.Source("EmptySource",
-                            #firstRun = cms.untracked.uint32(315257),
-                            firstRun = cms.untracked.uint32(320500),
+                            firstRun = cms.untracked.uint32(315257),
+                            #firstRun = cms.untracked.uint32(320500),
                             numberEventsInRun    = cms.untracked.uint32(2000),
                             firstLuminosityBlock = cms.untracked.uint32(1),
                             numberEventsInLuminosityBlock = cms.untracked.uint32(1),
                             )
 
-#process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(25000000))
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(1000000))
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(25000000))
+#process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(1000000))
 
 ##
 ## TrackerTopology
@@ -46,20 +46,23 @@ process.TrackerTopologyEP = cms.ESProducer("TrackerTopologyEP")
 process.load("CondCore.CondDB.CondDB_cfi")
 
 # DB input service: 
-process.CondDB.connect = "frontier://FrontierProd/CMS_CONDITIONS"
+process.CondDB.connect = "frontier://FrontierPrep/CMS_CONDITIONS"
 process.dbInput = cms.ESSource("PoolDBESSource",
                                process.CondDB,
                                toGet = cms.VPSet(cms.PSet(record = cms.string("SiPixelQualityFromDbRcd"),
+                                                          tag = cms.string("SiPixelQualityFromDbRcd_stuckTBM_Ultralegacy2018_v0")
                                                           #tag = cms.string("SiPixelQuality_byPCL_stuckTBM_v1")
                                                           #tag = cms.string("SiPixelQuality_byPCL_other_v1")
-                                                          tag = cms.string("SiPixelQuality_byPCL_prompt_v2")
+                                                          #tag = cms.string("SiPixelQuality_byPCL_prompt_v2")
+                                                          #tag = cms.string("SiPixelQuality_v07_offline")
                                                           )
                                                  )
                                )
 
 process.ReadInDB = cms.EDAnalyzer("SiPixelQualityPlotter",
+                                  #maxRun = cms.untracked.uint32(320393),
                                   lumiInputTag = cms.untracked.InputTag("LumiInfo", "brilcalc")
-)
+                                  )
 
 process.LumiInfo = cms.EDProducer('LumiProducerFromBrilcalc',
                                   lumiFile = cms.string("./luminosityDB_2018.csv"),
