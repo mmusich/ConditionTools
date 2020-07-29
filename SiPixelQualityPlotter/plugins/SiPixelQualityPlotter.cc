@@ -292,7 +292,7 @@ void SiPixelQualityPlotter::endJob() {
     canvasB.cd(lay)->SetLogz();
 
     TPad* current_pad = static_cast<TPad*>(canvasB.cd(lay));
-    CMS_lumi(current_pad, totalLumi_ * 10e-9);
+    CMS_lumi(current_pad, totalLumi_ * 1e-9);
   }
 
   canvasB.SaveAs(("SummaryBarrel_" + analyzedTag_ + ".png").c_str());
@@ -318,7 +318,7 @@ void SiPixelQualityPlotter::endJob() {
     canvasF.cd(ring)->SetLogz();
 
     TPad* current_pad = static_cast<TPad*>(canvasF.cd(ring));
-    CMS_lumi(current_pad, totalLumi_ * 10e-9);
+    CMS_lumi(current_pad, totalLumi_ * 1e-9);
   }
 
   canvasF.SaveAs(("SummaryForward_" + analyzedTag_ + ".png").c_str());
@@ -332,7 +332,7 @@ void SiPixelQualityPlotter::CMS_lumi(TPad* pad, float lumi) {
   ltx.SetTextAlign(11);
   char str[200];
   sprintf(
-      str, "#scale[1.2]{#font[61]{CMS}}#font[52]{Preliminary}    #font[42]{L=%.2f fb^{-1}(#sqrt{s} = 13 TeV)}", lumi);
+      str, "#scale[1.2]{#font[61]{CMS}}#font[52]{ Preliminary 2017}    #font[42]{%.3f fb^{-1} (13 TeV)}", lumi);
   ltx.DrawLatexNDC(gPad->GetLeftMargin(), 1 - gPad->GetTopMargin() + 0.01, str);
 }
 
