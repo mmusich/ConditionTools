@@ -69,6 +69,7 @@ private:
   void endJob() override;
 
   // ----------member data ---------------------------
+  std::string analyzedTag_;
   unsigned int lastRun_;
 
   edm::InputTag lumiInputTag_;
@@ -106,12 +107,14 @@ private:
 // constructors and destructor
 //
 SiPixelQualityPlotter::SiPixelQualityPlotter(const edm::ParameterSet& iConfig)
-  : lastRun_(iConfig.getUntrackedParameter<unsigned int>("maxRun",999999)), 
+  : analyzedTag_(iConfig.getParameter<std::string>("analyzedTag")),
+    lastRun_(iConfig.getUntrackedParameter<unsigned int>("maxRun",999999)), 
     lumiInputTag_(iConfig.getUntrackedParameter<edm::InputTag>("lumiInputTag")), 
     lumiToken_(consumes<LumiInfo>(lumiInputTag_)) {
 
   // initialize the counters
 
+  IOVcount_=0;
   totalLumi_=0;
   lumiSinceLastReset_=0;
   lastIOVtime_=0;
@@ -166,8 +169,6 @@ void SiPixelQualityPlotter::analyze(const edm::Event& iEvent, const edm::EventSe
   unsigned int RunNumber_ = iEvent.eventAuxiliary().run();
   unsigned int LuminosityBlockNumber_ = iEvent.eventAuxiliary().luminosityBlock();
 
-  if(RunNumber_>lastRun_) return;
-
   cond::UnpackedTime localtime = std::make_pair(RunNumber_,LuminosityBlockNumber_);
   cond::Time_t packedtime = cond::time::pack(localtime);
   
@@ -177,15 +178,11 @@ void SiPixelQualityPlotter::analyze(const edm::Event& iEvent, const edm::EventSe
   iSetup.get<TrackerTopologyRcd>().get(htopo);
   const auto m_trackerTopo = *htopo.product();
 
-  // retrieve the luminosity
-  const LumiInfo& lumi = iEvent.get(lumiToken_);
-  totalLumi_+=lumi.getTotalInstLumi();
-  lumiSinceLastReset_+=lumi.getTotalInstLumi();
-
   //if(packedtime!=lastIOVtime_){}
 
-  if (hasQualityIOV) {
+  if ( hasQualityIOV || RunNumber_>lastRun_) {
 
+    IOVcount_++;
     lastIOVtime_ = packedtime;
 
     std::cout << "New IOV, Run: "<< RunNumber_ << " LS:" << LuminosityBlockNumber_ << std::endl;
@@ -241,7 +238,7 @@ void SiPixelQualityPlotter::analyze(const edm::Event& iEvent, const edm::EventSe
     // clear the chached payload from memory
     cachedPayload_.clear();
     
-    //Retrieve the strip quality from conditions
+    //Retrieve the pixel quality from conditions
     edm::ESHandle<SiPixelQuality> siPixelQuality_;
     iSetup.get<SiPixelQualityFromDbRcd>().get(siPixelQuality_);
 
@@ -256,6 +253,14 @@ void SiPixelQualityPlotter::analyze(const edm::Event& iEvent, const edm::EventSe
     // reset the luminosity count to zero
     lumiSinceLastReset_=0;
   } // if there has been a new IOV
+
+  if(RunNumber_>lastRun_) return;
+
+  // retrieve the luminosity
+  const LumiInfo& lumi = iEvent.get(lumiToken_);
+  totalLumi_+=lumi.getTotalInstLumi();
+  lumiSinceLastReset_+=lumi.getTotalInstLumi();
+
 }
 
 // ------------ method called once each job just before starting event loop  ------------
@@ -268,7 +273,8 @@ void SiPixelQualityPlotter::endJob() {
   
   cond::UnpackedTime unpackedtime = cond::time::unpack(lastIOVtime_);
   std::cout<< "Last Analyzed LS: " << unpackedtime.first << "," << unpackedtime.second <<std::endl;
-  
+  std::cout<< "A total of "<< IOVcount_ << " IOVs have been analyzed!" << std::endl;
+
   gStyle->SetOptStat(0);
 
   //=========================
@@ -289,7 +295,7 @@ void SiPixelQualityPlotter::endJob() {
     canvasB.cd(lay)->SetLogz();
   }
   
-  canvasB.SaveAs("SummaryBarrel.png");
+  canvasB.SaveAs(("SummaryBarrel_"+analyzedTag_+".png").c_str());
 
   //=========================
   TCanvas canvasF("SummaryForward", "SummaryForward", 1200, 600);
@@ -308,7 +314,7 @@ void SiPixelQualityPlotter::endJob() {
     canvasF.cd(ring)->SetLogz();
   }
 
-  canvasF.SaveAs("SummaryForward.png");
+  canvasF.SaveAs(("SummaryForward_"+analyzedTag_+".png").c_str());
 }
 
 // ------------ method fills 'descriptions' with the allowed parameters for the module  ------------
