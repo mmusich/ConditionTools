@@ -91,7 +91,7 @@ process.dbInput = cms.ESSource("PoolDBESSource",
 chosenTag=process.dbInput.toGet[0].tag.value()
 try:
     shutil.move("SummaryBarrel_"+chosenTag+".png", "SummaryBarrel_"+chosenTag+"_old.png")
-    shutil.move("SummaryForward_"+chosenTag+".png", "SummaryForward_"+chosenTag+"old.png")
+    shutil.move("SummaryForward_"+chosenTag+".png", "SummaryForward_"+chosenTag+"_old.png")
 except:
     print("No old files to be moved")
 
