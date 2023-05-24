@@ -7,15 +7,15 @@ process = cms.Process("ProcessOne")
 
 options = VarParsing.VarParsing("analysis")
 options.register ('firstRun',
-                  1,VarParsing.VarParsing.multiplicity.singleton, # singleton or list
+                  366386,VarParsing.VarParsing.multiplicity.singleton, # singleton or list
                   VarParsing.VarParsing.varType.int,              # string, int, or float
                   "first run to be processed")
 options.register ('nLSToProcessPerRun',
-                  1,VarParsing.VarParsing.multiplicity.singleton, # singleton or list
+                  2000,VarParsing.VarParsing.multiplicity.singleton, # singleton or list
                   VarParsing.VarParsing.varType.int,              # string, int, or float
                   "number of lumisections to process per run")
 options.register ('nRunsToProcess',
-                  1,VarParsing.VarParsing.multiplicity.singleton, # singleton or list
+                  1313,VarParsing.VarParsing.multiplicity.singleton, # singleton or list
                   VarParsing.VarParsing.varType.int,              # string, int, or float
                   "total number of Runs to process")
 options.parseArguments()
@@ -24,19 +24,18 @@ options.parseArguments()
 ## MessageLogger
 ##
 process.load('FWCore.MessageService.MessageLogger_cfi')   
-process.MessageLogger.categories.append("SiPixelQualityPlotter")  
-#process.MessageLogger.categories.append("LumiProducerFromBrilcalc")  
-process.MessageLogger.destinations = cms.untracked.vstring("cout")
+process.MessageLogger.cerr.enable = False
+process.MessageLogger.SiPixelQualityPlotter =dict()  
 process.MessageLogger.cout = cms.untracked.PSet(
+    enable = cms.untracked.bool(True),
     threshold = cms.untracked.string("INFO"),
     default   = cms.untracked.PSet(limit = cms.untracked.int32(0)),                       
     FwkReport = cms.untracked.PSet(limit = cms.untracked.int32(-1),
                                    reportEvery = cms.untracked.int32(1000)
                                    ),                                                      
-    SiPixelQualityPlotter = cms.untracked.PSet( limit = cms.untracked.int32(-1)),
-    #LumiProducerFromBrilcalc = cms.untracked.PSet( limit = cms.untracked.int32(-1))
+    SiPixelQualityPlotter           = cms.untracked.PSet( limit = cms.untracked.int32(-1)),
+    enableStatistics = cms.untracked.bool(True)
     )
-process.MessageLogger.statistics.append('cout')  
 
 ##
 ## Empty source
@@ -80,7 +79,8 @@ process.CondDB.connect = "frontier://FrontierProd/CMS_CONDITIONS"
 process.dbInput = cms.ESSource("PoolDBESSource",
                                process.CondDB,
                                toGet = cms.VPSet(cms.PSet(record = cms.string("SiPixelQualityFromDbRcd"),
-                                                          tag = cms.string("SiPixelQuality_byPCL_prompt_v2") ## Prompt
+                                                          tag = cms.string("SiPixelQuality_byPCL_stuckTBM_v1") ## Prompt
+                                                          #tag = cms.string("SiPixelQuality_byPCL_prompt_v2") ## Prompt
                                                           #tag = cms.string("SiPixelQuality_v07_offline")      ## Re-Reco
                                                           )
                                                  )
@@ -108,7 +108,7 @@ process.ReadInDB = cms.EDAnalyzer("SiPixelQualityPlotter",
 ## The lumi information
 ##
 process.LumiInfo = cms.EDProducer('LumiProducerFromBrilcalc',
-                                  lumiFile = cms.string("./luminosityDB.csv"),
+                                  lumiFile = cms.string("./lumiData_2023.csv"),
                                   throwIfNotFound = cms.bool(False),
                                   doBunchByBunch = cms.bool(False))
 

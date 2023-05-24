@@ -29,7 +29,7 @@
 #include "CondFormats/SiPixelObjects/interface/SiPixelQuality.h"
 #include "DataFormats/Luminosity/interface/LumiInfo.h"
 #include "DataFormats/TrackerCommon/interface/TrackerTopology.h"
-#include "FWCore/Framework/interface/ESHandle.h"
+//#include "FWCore/Framework/interface/ESHandle.h"
 #include "FWCore/Framework/interface/ESWatcher.h"
 #include "FWCore/Framework/interface/Event.h"
 #include "FWCore/Framework/interface/Frameworkfwd.h"
@@ -46,6 +46,160 @@
 #include <memory>
 #include "TH2.h"
 #include "TCanvas.h"
+
+namespace payloadPlotting {
+
+  // overloaded method: mask single ROCs
+  /*--------------------------------------------------------------------*/
+  std::vector<std::tuple<int, int, int>>  maskedBarrelRocsToBins(int layer, int ladder, int module, std::bitset<16> bad_rocs, bool isFlipped)
+    /*--------------------------------------------------------------------*/
+  {
+    std::vector<std::tuple<int, int, int>> rocsToMask;
+    
+    int nlad_list[4] = {6, 14, 22, 32};
+    int nlad = nlad_list[layer - 1];
+    
+    int start_x = module > 0 ? ((module + 4) * 8) + 1 : ((4 - (std::abs(module))) * 8) + 1;
+    int start_y = ladder > 0 ? ((ladder + nlad) * 2) + 1 : ((nlad - (std::abs(ladder))) * 2) + 1;
+    
+    int roc0_x = ((layer == 1) || (layer > 1 && module > 0)) ? start_x + 7 : start_x;
+    int roc0_y = start_y - 1;
+    
+    size_t idx = 0;
+    while (idx < bad_rocs.size()) {
+      if (bad_rocs.test(idx)) {
+	//////////////////////////////////////////////////////////////////////////////////////
+	//		                          |					    //
+	// In BPix Layer1 and module>0 in L2,3,4  |   In BPix Layer 2,3,4 module > 0	    //
+	//                                        |					    //
+	// ROCs are ordered in the following      |   ROCs are ordered in the following     //
+	// fashion for unplipped modules 	  |   fashion for unplipped modules         //
+	//					  |  				            //
+	// +---+---+---+---+---+---+---+---+      |   +---+---+---+---+---+---+---+---+     //
+	// | 8 |9  |10 |11 |12 |13 |14 |15 |      |   |15 |14 |13 |12 |11 |10 | 9 | 8 |     //
+	// +---+---+---+---+---+---+---+---+      |   +---+---+---+---+---+---+---+---+     //
+	// | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |      |   | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |     //
+	// +---+---+---+---+---+---+---+---+      |   +---+---+---+---+---+---+---+---+     //
+	//					  |  					    //
+	// if the module is flipped the ordering  |   if the module is flipped the ordering //
+	// is reveresed                           |   is reversed                           //
+	//					  |                                         //
+	// +---+---+---+---+---+---+---+---+      |   +---+---+---+---+---+---+---+---+     //
+	// | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |      |   | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |     //
+	// +---+---+---+---+---+---+---+---+      |   +---+---+---+---+---+---+---+---+     //
+	// | 8 | 9 |10 |11 |12 |13 |14 |15 |      |   |15 |14 |13 |12 |11 |10 | 9 | 8 |     //
+	// +---+---+---+---+---+---+---+---+      |   +---+---+---+---+---+---+---+---+     //
+	//////////////////////////////////////////////////////////////////////////////////////
+      
+	int roc_x(0), roc_y(0);
+      
+	if ((layer == 1) || (layer > 1 && module > 0)) {
+	  if (!isFlipped) {
+	    roc_x = idx < 8 ? roc0_x - idx : (start_x - 8) + idx;
+	    roc_y = idx < 8 ? roc0_y + 1 : roc0_y + 2;
+	  } else {
+	    roc_x = idx < 8 ? roc0_x - idx : (start_x - 8) + idx;
+	    roc_y = idx < 8 ? roc0_y + 2 : roc0_y + 1;
+	  }
+	} else {
+	  if (!isFlipped) {
+	    roc_x = idx < 8 ? roc0_x + idx : (roc0_x + 7) - (idx - 8);
+	    roc_y = idx < 8 ? roc0_y + 1 : roc0_y + 2;
+	  } else {
+	    roc_x = idx < 8 ? roc0_x + idx : (roc0_x + 7) - (idx - 8);
+	    roc_y = idx < 8 ? roc0_y + 2 : roc0_y + 1;
+	  }
+	}
+	
+	edm::LogInfo("payloadPlotting") << bad_rocs << " : (idx)= " << idx << std::endl;
+	edm::LogInfo("payloadPlotting") << " layer:  " << layer << std::endl;
+	edm::LogInfo("payloadPlotting") << "module: " << module << " roc_x:" << roc_x << std::endl;
+	edm::LogInfo("payloadPlotting") << "ladder: " << ladder << " roc_y:" << roc_y << std::endl;
+	edm::LogInfo("payloadPlotting") << "==================================================================" << std::endl;
+	
+	rocsToMask.push_back(std::make_tuple(roc_x, roc_y, idx));
+      }
+      ++idx;
+    }
+    return rocsToMask;
+  }
+  
+  // overloaded method: mask single ROCs
+  /*--------------------------------------------------------------------*/
+  std::vector<std::tuple<int, int, int>> maskedForwardRocsToBins(
+								 int ring, int blade, int panel, int disk, std::bitset<16> bad_rocs, bool isFlipped)
+		/*--------------------------------------------------------------------*/
+  {
+    std::vector<std::tuple<int, int, int>> rocsToMask;
+    int nybins_list[2] = {92, 140};
+    int nybins = nybins_list[ring - 1];
+    
+    int start_x = disk > 0 ? ((disk + 3) * 8) + 1 : ((3 - (std::abs(disk))) * 8) + 1;
+    int start_y = blade > 0 ? (nybins / 2) + (blade * 4) - (panel * 2) + 3
+      : ((nybins / 2) - (std::abs(blade) * 4) - panel * 2) + 3;
+    
+    int roc0_x = disk > 0 ? start_x + 7 : start_x;
+    int roc0_y = start_y - 1;
+    
+    size_t idx = 0;
+    while (idx < bad_rocs.size()) {
+      if (bad_rocs.test(idx)) {
+	int roc_x(0), roc_y(0);
+	
+	//////////////////////////////////////////////////////////////////////////////////////
+	//		                          |					    //
+	// In FPix + (Disk 1,2,3)                 |   In FPix - (Disk -1,-2,-3)	            //
+	//                                        |					    //
+	// ROCs are ordered in the following      |   ROCs are ordered in the following     //
+	// fashion for unplipped modules 	  |   fashion for unplipped modules         //
+	//					  |  				            //
+	// +---+---+---+---+---+---+---+---+      |   +---+---+---+---+---+---+---+---+     //
+	// | 8 |9  |10 |11 |12 |13 |14 |15 |      |   |15 |14 |13 |12 |11 |10 | 9 | 8 |     //
+	// +---+---+---+---+---+---+---+---+      |   +---+---+---+---+---+---+---+---+     //
+	// | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |      |   | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |     //
+	// +---+---+---+---+---+---+---+---+      |   +---+---+---+---+---+---+---+---+     //
+	//					  |  					    //
+	// if the module is flipped the ordering  |   if the module is flipped the ordering //
+	// is reveresed                           |   is reversed                           //
+	//					  |                                         //
+	// +---+---+---+---+---+---+---+---+      |   +---+---+---+---+---+---+---+---+     //
+	// | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |      |   | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |     //
+	// +---+---+---+---+---+---+---+---+      |   +---+---+---+---+---+---+---+---+     //
+	// | 8 | 9 |10 |11 |12 |13 |14 |15 |      |   |15 |14 |13 |12 |11 |10 | 9 | 8 |     //
+	// +---+---+---+---+---+---+---+---+      |   +---+---+---+---+---+---+---+---+     //
+	//////////////////////////////////////////////////////////////////////////////////////
+	
+	if (disk > 0) {
+	  if (!isFlipped) {
+	    roc_x = idx < 8 ? roc0_x - idx : (start_x - 8) + idx;
+	    roc_y = idx < 8 ? roc0_y + 1 : roc0_y + 2;
+	  } else {
+	    roc_x = idx < 8 ? roc0_x - idx : (start_x - 8) + idx;
+	    roc_y = idx < 8 ? roc0_y + 2 : roc0_y + 1;
+	  }
+	} else {
+	  if (!isFlipped) {
+	    roc_x = idx < 8 ? roc0_x + idx : (roc0_x + 7) - (idx - 8);
+	    roc_y = idx < 8 ? roc0_y + 1 : roc0_y + 2;
+	  } else {
+	    roc_x = idx < 8 ? roc0_x + idx : (roc0_x + 7) - (idx - 8);
+	    roc_y = idx < 8 ? roc0_y + 2 : roc0_y + 1;
+	  }
+	}
+	
+	edm::LogInfo("payloadPlotting") << bad_rocs << " : (idx)= " << idx << std::endl;
+	edm::LogInfo("payloadPlotting") << " panel: " << panel << " isFlipped: " << isFlipped << std::endl;
+	edm::LogInfo("payloadPlotting") << " disk:  " << disk << " roc_x:" << roc_x << std::endl;
+	edm::LogInfo("payloadPlotting") << " blade: " << blade << " roc_y:" << roc_y << std::endl;
+	edm::LogInfo("payloadPlotting") << "===============================" << std::endl;
+	
+	rocsToMask.push_back(std::make_tuple(roc_x, roc_y, idx));
+      }
+      ++idx;
+    }
+    return rocsToMask;
+  }
+}  
 
 //
 // class declaration
@@ -65,6 +219,9 @@ private:
   void endJob() override;
 
   // ----------member data ---------------------------
+  const edm::ESGetToken<TrackerTopology, TrackerTopologyRcd> topoEsToken_;
+  const edm::ESGetToken<SiPixelQuality,SiPixelQualityFromDbRcd> qualEsToken_;
+
   std::string analyzedTag_;
   unsigned int lastRun_;
 
@@ -94,10 +251,12 @@ private:
 // constructors and destructor
 //
 SiPixelQualityPlotter::SiPixelQualityPlotter(const edm::ParameterSet& iConfig)
-    : analyzedTag_(iConfig.getParameter<std::string>("analyzedTag")),
-      lastRun_(iConfig.getUntrackedParameter<unsigned int>("maxRun", 999999)),
-      lumiInputTag_(iConfig.getUntrackedParameter<edm::InputTag>("lumiInputTag")),
-      lumiToken_(consumes<LumiInfo>(lumiInputTag_)) {
+  : topoEsToken_(esConsumes()),
+    qualEsToken_(esConsumes()),
+    analyzedTag_(iConfig.getParameter<std::string>("analyzedTag")),
+    lastRun_(iConfig.getUntrackedParameter<unsigned int>("maxRun", 999999)),
+    lumiInputTag_(iConfig.getUntrackedParameter<edm::InputTag>("lumiInputTag")),
+    lumiToken_(consumes<LumiInfo>(lumiInputTag_)) {
   // initialize the counters
 
   IOVcount_ = 0;
@@ -160,9 +319,7 @@ void SiPixelQualityPlotter::analyze(const edm::Event& iEvent, const edm::EventSe
 
   bool hasQualityIOV = SiPixelQualityWatcher_.check(iSetup);
 
-  edm::ESHandle<TrackerTopology> htopo;
-  iSetup.get<TrackerTopologyRcd>().get(htopo);
-  const auto m_trackerTopo = *htopo.product();
+  const auto& m_trackerTopo = iSetup.getData(topoEsToken_);
 
   //if(packedtime!=lastIOVtime_){}
 
@@ -191,7 +348,7 @@ void SiPixelQualityPlotter::analyze(const edm::Event& iEvent, const edm::EventSe
         //edm::LogDebug("SiPixelQualityPlotter") << "layer:" << layer << " ladder:" << ladder << " module:" << module << " signed ladder: " << s_ladder
         //       << " signed module: " << s_module << std::endl;
 
-        auto bpix_rocsToMask = SiPixelPI::maskedBarrelRocsToBins(layer, s_ladder, s_module, payload, isFlipped);
+        auto bpix_rocsToMask =  payloadPlotting::maskedBarrelRocsToBins(layer, s_ladder, s_module, payload, isFlipped);
         for (const auto& bin : bpix_rocsToMask) {
           double x = h_bpix_occ[layer - 1]->GetXaxis()->GetBinCenter(std::get<0>(bin));
           double y = h_bpix_occ[layer - 1]->GetYaxis()->GetBinCenter(std::get<1>(bin));
@@ -209,7 +366,7 @@ void SiPixelQualityPlotter::analyze(const edm::Event& iEvent, const edm::EventSe
         //edm::LogDebug("SiPixelQualityPlotter") << "ring:" << ring << " blade: " << s_blade << " panel: " << panel
         //	  << " signed blade/panel: " << s_blade_panel << " disk: " << s_disk << std::endl;
 
-        auto fpix_rocsToMask = SiPixelPI::maskedForwardRocsToBins(ring, s_blade, panel, s_disk, payload, isFlipped);
+        auto fpix_rocsToMask =  payloadPlotting::maskedForwardRocsToBins(ring, s_blade, panel, s_disk, payload, isFlipped);
         for (const auto& bin : fpix_rocsToMask) {
           double x = h_fpix_occ[ring - 1]->GetXaxis()->GetBinCenter(std::get<0>(bin));
           double y = h_fpix_occ[ring - 1]->GetYaxis()->GetBinCenter(std::get<1>(bin));
@@ -224,8 +381,7 @@ void SiPixelQualityPlotter::analyze(const edm::Event& iEvent, const edm::EventSe
     cachedPayload_.clear();
 
     //Retrieve the pixel quality from conditions
-    edm::ESHandle<SiPixelQuality> siPixelQuality_;
-    iSetup.get<SiPixelQualityFromDbRcd>().get(siPixelQuality_);
+    const SiPixelQuality* siPixelQuality_ = &iSetup.getData(qualEsToken_);
 
     // cache the new payload
     auto theDisabledModules = siPixelQuality_->getBadComponentList();
@@ -267,7 +423,7 @@ void SiPixelQualityPlotter::endJob() {
   TCanvas canvasB("SummaryBarrel", "SummaryBarrel", 1400, 1200);
   canvasB.Divide(2, 2);
   for (unsigned int i = 1; i <= n_layers; i++) {
-    canvasB.cd(i)->SetTopMargin(0.05);
+    canvasB.cd(i)->SetTopMargin(0.06);
     canvasB.cd(i)->SetBottomMargin(0.11);
     canvasB.cd(i)->SetLeftMargin(0.12);
     canvasB.cd(i)->SetRightMargin(0.16);
@@ -287,16 +443,16 @@ void SiPixelQualityPlotter::endJob() {
     h_bpix_occ[lay - 1]->GetZaxis()->CenterTitle();
 
     canvasB.cd(lay)->Modified();
-    SiPixelPI::dress_occup_plot(canvasB, h_bpix_occ[lay - 1], lay, 0, 1, true, true, false);
+    SiPixelPI::dress_occup_plot(canvasB, h_bpix_occ[lay - 1], lay, 0, 1, true, true, true);
     canvasB.cd(lay)->SetLogz();
-    TPad* current_pad = static_cast<TPad*>(canvasB.cd(lay));
-    CMS_lumi(current_pad, totalLumi_);
+    //TPad* current_pad = static_cast<TPad*>(canvasB.cd(lay));
+    //CMS_lumi(current_pad, totalLumi_);
 
     vCanvasBarrel[lay - 1]->cd()->Modified();
-    SiPixelPI::dress_occup_plot(*vCanvasBarrel[lay - 1], h_bpix_occ[lay - 1], lay, 0, 1, true, true, false);
+    SiPixelPI::dress_occup_plot(*vCanvasBarrel[lay - 1], h_bpix_occ[lay - 1], lay, 0, 1, true, true, true);
     vCanvasBarrel[lay - 1]->cd()->SetLogz();
-    current_pad = static_cast<TPad*>(vCanvasBarrel[lay - 1]->cd());
-    CMS_lumi(current_pad, totalLumi_);
+    //current_pad = static_cast<TPad*>(vCanvasBarrel[lay - 1]->cd());
+    //CMS_lumi(current_pad, totalLumi_);
   }
 
   for (unsigned int lay = 1; lay <= n_layers; lay++) {
@@ -312,7 +468,7 @@ void SiPixelQualityPlotter::endJob() {
   TCanvas canvasF("SummaryForward", "SummaryForward", 1400, 600);
   canvasF.Divide(2, 1);
   for (unsigned int i = 1; i <= n_rings; i++) {
-    canvasF.cd(i)->SetTopMargin(0.05);
+    canvasF.cd(i)->SetTopMargin(0.06);
     canvasF.cd(i)->SetBottomMargin(0.11);
     canvasF.cd(i)->SetLeftMargin(0.12);
     canvasF.cd(i)->SetRightMargin(0.16);
@@ -332,16 +488,16 @@ void SiPixelQualityPlotter::endJob() {
     h_fpix_occ[ring - 1]->GetZaxis()->CenterTitle();
 
     canvasF.cd(ring)->Modified();
-    SiPixelPI::dress_occup_plot(canvasF, h_fpix_occ[ring - 1], 0, ring, 1, true, true, false);
+    SiPixelPI::dress_occup_plot(canvasF, h_fpix_occ[ring - 1], 0, ring, 1, true, true, true);
     canvasF.cd(ring)->SetLogz();
-    TPad* current_pad = static_cast<TPad*>(canvasF.cd(ring));
-    CMS_lumi(current_pad, totalLumi_);
+    //TPad* current_pad = static_cast<TPad*>(canvasF.cd(ring));
+    //CMS_lumi(current_pad, totalLumi_);
 
     vCanvasForward[ring - 1]->cd()->Modified();
-    SiPixelPI::dress_occup_plot(*vCanvasForward[ring - 1], h_fpix_occ[ring - 1], 0, ring, 1, true, true, false);
+    SiPixelPI::dress_occup_plot(*vCanvasForward[ring - 1], h_fpix_occ[ring - 1], 0, ring, 1, true, true, true);
     vCanvasForward[ring - 1]->cd()->SetLogz();
-    current_pad = static_cast<TPad*>(vCanvasForward[ring - 1]->cd());
-    CMS_lumi(current_pad, totalLumi_);
+    //current_pad = static_cast<TPad*>(vCanvasForward[ring - 1]->cd());
+    //CMS_lumi(current_pad, totalLumi_);
   }
 
   for (unsigned int ring = 1; ring <= n_rings; ring++) {
